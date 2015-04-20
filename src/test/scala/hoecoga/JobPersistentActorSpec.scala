@@ -71,6 +71,7 @@ trait JobPersistentActorSpecHelper extends PersistentActorHelper {
       f(JobPersistentActorSpecSettings(probe, command))
     } finally {
       system.shutdown()
+      system.awaitTermination()
     }
   }
 }

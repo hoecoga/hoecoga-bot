@@ -84,6 +84,7 @@ trait SchedulerActorSpecHelper {
       f(SchedulerActorSpecSettings(probe1, probe2, jobId, cron, del))
     } finally {
       system.shutdown()
+      system.awaitTermination()
     }
   }
 }
