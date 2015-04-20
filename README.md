@@ -6,7 +6,7 @@ Edit `slack.base-url` and `slack.token` on `conf/application.conf`.
 
 ```
 sbt assembly
-java -Dconfig.file=conf/application.conf -Dlogback.configurationFile=conf/logback.xml -jar target/scala-2.11/hoecoga-bot-assembly-1.0.jar
+java -Dconfig.file=conf/application.conf -Dlogback.configurationFile=conf/logback.xml -jar target/scala-2.11/hoecoga-bot-assembly-1.1.jar
 ```
 
 ## Commands

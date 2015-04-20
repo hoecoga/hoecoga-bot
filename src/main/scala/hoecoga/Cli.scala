@@ -18,6 +18,8 @@ trait Cli[A] {
     }
 
     override def reportWarning(msg: String): Unit = {}
+
+    override def showTryHelp: Unit = ()
   }
 
   protected val parser: Parser

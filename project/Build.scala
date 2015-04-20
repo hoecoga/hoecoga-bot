@@ -14,10 +14,10 @@ object Build extends sbt.Build {
 object Settings {
   val defaultSettings = Seq(
     name := "hoecoga-bot",
-    version := "1.0",
+    version := "1.1",
     scalaVersion := "2.11.6",
     fork in Test := true,
-    scalacOptions in (Compile, compile) ++= Seq("-Xlint", "-Xfatal-warnings", "-feature", "-unchecked", "-deprecation"))
+    scalacOptions in (Compile, compile) ++= Seq("-Xlint:-nullary-unit", "-Xlint", "-Xfatal-warnings", "-feature", "-unchecked", "-deprecation"))
 
   val akkaVersion = "2.3.9"
 
