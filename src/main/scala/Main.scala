@@ -53,6 +53,7 @@ object Main {
       bus = schedulerBus)
 
     val slackSettings = SlackActor.SlackActorSettings(
+      config.slack.keepAliveInterval,
       config.slack.ignoredChannels,
       config.slack.reconnectInterval,
       factory,

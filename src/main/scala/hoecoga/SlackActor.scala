@@ -6,28 +6,33 @@ import akka.actor._
 import hoecoga.SchedulerActor.{CreatedJob, DeletedJob, Jobs, SchedulerFailure}
 import hoecoga.SchedulerEventBus.OutgoingSchedulerEvent
 import hoecoga.SimpleMessageEventBus.SimpleMessageEvent
-import hoecoga.SlackActor.{Connect, Reconnect, SimpleMessage}
+import hoecoga.SlackActor._
 import hoecoga.SlackChannelActor.{ChannelMessageEvent, ChannelName}
-import hoecoga.core.JsonUtil
-import hoecoga.slack.{MessageEvent, SlackChannel, SlackUser, SlackWebApi}
+import hoecoga.SlackKeepAliveActor.{ExceedInterval, AskKeepAlive, Alive, SlackKeepAliveActorSettings}
+import hoecoga.slack._
 import hoecoga.websocket.{Client, ClientFactory}
 import org.java_websocket.handshake.ServerHandshake
-import play.api.libs.json.{Format, JsValue, Json}
+import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.mutable
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 /**
  * A slack websocket actor.
  */
 class SlackActor(settings: SlackActor.SlackActorSettings) extends Actor with ActorLogging {
   import settings._
+  import context.dispatcher
 
   private[this] val simpleMessageId = new AtomicLong(0)
+
+  private[this] def nextMessageId() = simpleMessageId.incrementAndGet()
 
   private[this] var client: Client = null
 
   private[this] var bot: SlackUser = null
+
+  private[this] var keepAlive: ActorRef = null
 
   private[this] val channels: mutable.Map[SlackChannel, ActorRef] = mutable.Map.empty
 
@@ -39,10 +44,17 @@ class SlackActor(settings: SlackActor.SlackActorSettings) extends Actor with Act
   }
 
   private[this] def event(e: JsValue): Unit = {
-    if ((e \ "type").asOpt[String].contains("message")) {
-      self ! e.as[MessageEvent]
+    (e \ "type").asOpt[String] match {
+      case Some("message") =>
+        self ! e.as[MessageEvent]
+
+      case Some("pong") =>
+        self ! e.as[PongEvent]
+
+      case _ =>
     }
-    log.debug(e.toString())
+    if (keepAlive != null) keepAlive ! Alive
+    log.debug(e.toString().take(1000))
   }
 
   private[this] def channelActor(channel: SlackChannel): ActorRef = {
@@ -79,7 +91,7 @@ class SlackActor(settings: SlackActor.SlackActorSettings) extends Actor with Act
       }
 
       def error(e: Exception): Unit = {
-        log.error(s"error: uri=$uri", e)
+        log.error(e, s"error: uri=$uri")
       }
 
       def close(code: Int, reason: String, remote: Boolean): Unit = {
@@ -89,12 +101,28 @@ class SlackActor(settings: SlackActor.SlackActorSettings) extends Actor with Act
 
       client = factory.wss(uri = uri, open = open, error = error, close = close, receive = event)
       bot = user
+      keepAlive = context.actorOf(SlackKeepAliveActor.props(SlackKeepAliveActorSettings(self, keepAliveInterval)))
 
     case Reconnect =>
       client = null
       bot = null
-      Thread.sleep(reconnectInterval.toMillis)
-      self ! Connect
+      keepAlive ! PoisonPill
+      keepAlive = null
+      context.system.scheduler.scheduleOnce(reconnectInterval, self, Connect)
+
+    case AskKeepAlive =>
+      val id = nextMessageId()
+      if (client != null) {
+        log.debug(s"send(${Json.toJson(PingMessage(id)).toString()})")
+        client.send(Json.toJson(PingMessage(id)).toString())
+      }
+
+    case ExceedInterval =>
+      if (client != null) client.close()
+      log.info("connection closed due to exceed keep alive interval")
+
+    case e @ PongEvent(replyTo, _) =>
+      if (keepAlive != null) keepAlive ! e
 
     case e @ MessageEvent(channel, _, _, _) =>
       log.debug(s"$e")
@@ -109,9 +137,9 @@ class SlackActor(settings: SlackActor.SlackActorSettings) extends Actor with Act
     case e: SimpleMessageEvent =>
       withChannelName(e.channel) { name =>
         log.info(s"#$name: $bot sends $e")
-        val message = SimpleMessage(channel = e.channel, text = e.text, id = simpleMessageId.incrementAndGet())
+        val message = SimpleMessage(channel = e.channel, text = e.text, id = nextMessageId())
         if (client != null) client.send(Json.toJson(message).toString())
-        else log.error(s"connection closed: #$name: $e")
+        else log.info(s"connection closed: #$name: $e")
       }
 
     case e: OutgoingSchedulerEvent =>
@@ -124,20 +152,11 @@ object SlackActor {
   private case object Reconnect
 
   /**
-   * @see [[https://api.slack.com/rtm]]
-   */
-  case class SimpleMessage(id: Long, channel: SlackChannel, text: String, tpe: String = "message") {
-    require(tpe == "message")
-  }
-
-  implicit val format: Format[SimpleMessage] =
-    JsonUtil.format("id", "channel", "text", "type", SimpleMessage.apply, SimpleMessage.unapply)
-
-  /**
    * @param ignoredChannels refer to [[Config.slack.ignoredChannels]].
    * @param reconnectInterval refer to [[Config.slack.reconnectInterval]].
    */
   case class SlackActorSettings(
+    keepAliveInterval: FiniteDuration,
     ignoredChannels: List[String],
     reconnectInterval: FiniteDuration,
     factory: ClientFactory,

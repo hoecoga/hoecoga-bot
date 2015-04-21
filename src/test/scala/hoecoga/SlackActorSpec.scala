@@ -7,11 +7,10 @@ import java.util.{TimeZone, UUID}
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import com.google.inject.{AbstractModule, Guice}
-import hoecoga.SlackActor.SimpleMessage
 import hoecoga.SlackChannelActor.ChannelName
 import hoecoga.core.ArbitraryHelper
 import hoecoga.scheduler.{JobData, SlackJob}
-import hoecoga.slack.{MessageEvent, SlackChannel, SlackUser, SlackWebApi}
+import hoecoga.slack._
 import hoecoga.websocket.{Client, ClientFactory}
 import org.java_websocket.handshake.ServerHandshake
 import org.mockito.Mockito._
@@ -32,8 +31,44 @@ class SlackActorSpec(_system: ActorSystem)
   }
 
   describe("SlackActor") {
+    it("keep alive") {
+      test(keepAliveInterval = 1.seconds) { settings =>
+        import settings._
+
+        Thread.sleep(1000)
+        verify(client, times(1)).send(Matchers.argThat(new PingMessageMatcher))
+
+        Thread.sleep(1000)
+        verify(client, times(1)).close()
+      }
+
+      test(keepAliveInterval = 1.seconds) { settings =>
+        import settings._
+
+        Thread.sleep(1000)
+        verify(client, times(1)).send(Matchers.argThat(new PingMessageMatcher))
+
+        receive(Json.toJson(PongEvent(1)))
+
+        Thread.sleep(1000)
+        verify(client, never()).close()
+      }
+
+      test(keepAliveInterval = 1.seconds) { settings =>
+        import settings._
+
+        Thread.sleep(1000)
+        verify(client, times(1)).send(Matchers.argThat(new PingMessageMatcher))
+
+        receive(Json.obj())
+
+        Thread.sleep(1000)
+        verify(client, never()).close()
+      }
+    }
+
     it("ping") {
-      test { settings =>
+      test(keepAliveInterval = 100.seconds) { settings =>
         import settings._
 
         val ignored = ignoredChannel()
@@ -55,7 +90,7 @@ class SlackActorSpec(_system: ActorSystem)
     }
 
     it("cron") {
-      test { settings =>
+      test(keepAliveInterval = 100.seconds) { settings =>
         import settings._
 
         val channel1, channel2 = acceptedChannel().id
@@ -123,18 +158,25 @@ trait SlackActorSpecHelper extends ArbitraryHelper with MockitoSugar {
     }
   }
 
+  class PingMessageMatcher extends ArgumentMatcher[String] {
+    override def matches(argument: scala.Any): Boolean = {
+      Json.parse(argument.asInstanceOf[String]).asOpt[PingMessage].isDefined
+    }
+  }
+
   case class Channel(id: SlackChannel, name: ChannelName)
 
   case class SlackActorSpecSettings(
     api: SlackWebApi,
     client: Client,
+    receive: JsValue => Unit,
     message: (SlackChannel, String) => Unit,
     ignoredChannel: () => Channel,
     acceptedChannel: () => Channel,
     jobId: AtomicReference[String]
   )
 
-  def test(f: SlackActorSpecSettings => Unit)(implicit system: ActorSystem): Unit = {
+  def test(keepAliveInterval: FiniteDuration)(f: SlackActorSpecSettings => Unit)(implicit system: ActorSystem): Unit = {
     val api = mock[SlackWebApi]
 
     val channels = scala.collection.mutable.Map.empty[SlackChannel, ChannelName]
@@ -171,6 +213,7 @@ trait SlackActorSpecHelper extends ArbitraryHelper with MockitoSugar {
 
     val slack = {
       val settings = SlackActor.SlackActorSettings(
+        keepAliveInterval = keepAliveInterval,
         ignoredChannels = ignoredChannels.map(_.name.name),
         reconnectInterval = 10.seconds,
         api = api,
@@ -196,9 +239,11 @@ trait SlackActorSpecHelper extends ArbitraryHelper with MockitoSugar {
       system.actorOf(SchedulerActor.props(settings))
     }
 
+    def receive(json: JsValue): Unit = send.get()(json)
+
     def message(channel: SlackChannel, text: String): Unit = {
       val event = Json.toJson(sample[MessageEvent].copy(channel = channel, user = sample[SlackUser], text = s"<@${bot.id}>: $text"))
-      send.get()(event.as[JsObject] + ("type" -> JsString("message")))
+      receive(event.as[JsObject] + ("type" -> JsString("message")))
     }
 
     val count = new AtomicInteger(0)
@@ -206,10 +251,10 @@ trait SlackActorSpecHelper extends ArbitraryHelper with MockitoSugar {
 
     def acceptedChannel() = newChannel()
 
-    Thread.sleep(1000)
+    Thread.sleep(500)
 
     try {
-      f(SlackActorSpecSettings(api, client, message, ignoredChannel, acceptedChannel, jobId))
+      f(SlackActorSpecSettings(api, client, receive, message, ignoredChannel, acceptedChannel, jobId))
     } finally {
       slack ! PoisonPill
       scheduler ! PoisonPill
