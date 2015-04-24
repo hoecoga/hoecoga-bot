@@ -1,8 +1,8 @@
-package hoecoga
+package hoecoga.actor.slack
 
 import akka.actor.ActorRef
 import akka.event.{EventBus, LookupClassification}
-import hoecoga.SimpleMessageEventBus.SimpleMessageEvent
+import hoecoga.actor.slack.SimpleMessageEventBus.SimpleMessageEvent
 import hoecoga.slack.SlackChannel
 
 class SimpleMessageEventBus extends EventBus with LookupClassification {

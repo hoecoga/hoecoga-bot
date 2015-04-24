@@ -1,8 +1,9 @@
-package hoecoga
+package hoecoga.actor.command
 
 import akka.actor.{Actor, ActorLogging, Props}
-import hoecoga.CronActor._
-import hoecoga.SchedulerActor.{CreateJob, DeleteJob, GetJobs}
+import hoecoga.actor.command.CronActor._
+import hoecoga.actor.scheduler.{SchedulerEventBus, SchedulerActor}
+import SchedulerActor.{CreateJob, DeleteJob, GetJobs}
 import hoecoga.slack.MessageEvent
 import scopt.OptionParser
 
@@ -93,6 +94,11 @@ object CronActor {
 
   case class CronConfig(help: Boolean = false, command: Option[CronCommand] = None, createArgs: List[String] = Nil, deleteArg: String = "")
 
+  /**
+   * An incoming cron command.
+   * @param message original [[MessageEvent]].
+   * @param args cron command arguments.
+   */
   case class Cron(message: MessageEvent, args: Array[String])
 
   case class CronActorSettings(bus: SchedulerEventBus)

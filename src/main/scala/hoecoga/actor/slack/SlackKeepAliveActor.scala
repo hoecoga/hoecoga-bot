@@ -1,9 +1,9 @@
-package hoecoga
+package hoecoga.actor.slack
 
 import java.time.LocalDateTime
 
 import akka.actor._
-import hoecoga.SlackKeepAliveActor._
+import hoecoga.actor.slack.SlackKeepAliveActor._
 import hoecoga.slack.PongEvent
 
 import scala.concurrent.duration.FiniteDuration
@@ -39,7 +39,7 @@ class SlackKeepAliveActor(settings: SlackKeepAliveActorSettings) extends Actor w
       activity = now()
       context.unbecome()
   }
-
+  
   override def receive: Receive = {
     case Tick =>
       if (now().isAfter(activity.plusSeconds(interval.toSeconds))) {
@@ -55,10 +55,19 @@ class SlackKeepAliveActor(settings: SlackKeepAliveActorSettings) extends Actor w
 object SlackKeepAliveActor {
   private case object Tick
 
+  /**
+   * An outgoing message to send a keep-alive message.
+   */
   case object AskKeepAlive
 
+  /**
+   * An incoming message which indicates the websocket connection is still alive.
+   */
   case object Alive
 
+  /**
+   * An outgoing message to close the websocket connection.
+   */
   case object ExceedInterval
 
   case class SlackKeepAliveActorSettings(actor: ActorRef, interval: FiniteDuration)

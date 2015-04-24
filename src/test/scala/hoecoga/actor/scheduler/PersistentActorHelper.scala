@@ -1,4 +1,4 @@
-package hoecoga
+package hoecoga.actor.scheduler
 
 import java.io.File
 import java.nio.file.{Files, Path}

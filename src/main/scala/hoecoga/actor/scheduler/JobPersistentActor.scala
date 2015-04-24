@@ -1,8 +1,9 @@
-package hoecoga.scheduler
+package hoecoga.actor.scheduler
 
 import akka.actor.Props
 import akka.persistence.{PersistentActor, RecoveryCompleted, RecoveryFailure, SnapshotOffer}
-import hoecoga.scheduler.JobPersistentActor._
+import hoecoga.actor.scheduler.JobPersistentActor._
+import hoecoga.scheduler.JobData
 import hoecoga.slack.SlackChannel
 
 /**
@@ -49,15 +50,33 @@ class JobPersistentActor(settings: JobPersistentActorSettings) extends Persisten
 object JobPersistentActor {
   private case class State(jobs: List[JobData])
 
+  /**
+   * An incoming order to insert `data` into the state of [[JobPersistentActor]].
+   */
   case class Insert(data: JobData)
+
   private case class InsertEvent(data: JobData)
 
+  /**
+   * An incoming order to delete [[JobData]] from the state of [[JobPersistentActor]].
+   */
   case class Delete(channel: SlackChannel, id: String)
+
   private case class DeleteEvent(channel: SlackChannel, id: String)
 
+  /**
+   * An incoming order to save a snapshot.
+   */
   case object SaveSnapshot
 
+  /**
+   * An incoming order to retrieve all [[JobData]] on `channel`.
+   */
   case class Query(channel: SlackChannel)
+
+  /**
+   * A result of [[Query]].
+   */
   case class QueryResult(channel: SlackChannel, jobs: List[JobData])
 
   /**

@@ -1,12 +1,12 @@
-package hoecoga
+package hoecoga.actor.scheduler
 
 import java.nio.file.Path
 import java.util.UUID
 
 import akka.testkit.TestProbe
+import hoecoga.actor.scheduler.JobPersistentActor.{Delete, Insert, Query, QueryResult}
 import hoecoga.core.ArbitraryHelper
-import hoecoga.scheduler.JobPersistentActor.{Delete, Insert, Query, QueryResult}
-import hoecoga.scheduler.{JobData, JobPersistentActor}
+import hoecoga.scheduler.JobData
 import hoecoga.slack.SlackChannel
 import org.scalatest.FunSpec
 

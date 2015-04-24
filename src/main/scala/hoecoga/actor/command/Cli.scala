@@ -1,7 +1,7 @@
-package hoecoga
+package hoecoga.actor.command
 
 import akka.actor.ActorRef
-import hoecoga.Cli.{Error, Usage}
+import hoecoga.actor.command.Cli.{Error, Usage}
 import scopt.OptionParser
 
 /**
@@ -37,6 +37,13 @@ trait Cli[A] {
 }
 
 object Cli {
+  /**
+   * An outgoing usage text.
+   */
   case class Usage(text: String)
+
+  /**
+   * An outgoing error text.
+   */
   case class Error(text: String)
 }

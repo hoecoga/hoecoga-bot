@@ -1,19 +1,22 @@
-package hoecoga
+package hoecoga.actor.slack
 
 import java.net.URI
+import java.time.LocalDateTime
 import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.{TimeZone, UUID}
 
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit}
 import com.google.inject.{AbstractModule, Guice}
-import hoecoga.SlackChannelActor.ChannelName
+import hoecoga.actor.scheduler.{PersistentActorHelper, SchedulerActor, SchedulerEventBus}
 import hoecoga.core.ArbitraryHelper
 import hoecoga.scheduler.{JobData, SlackJob}
 import hoecoga.slack._
 import hoecoga.websocket.{Client, ClientFactory}
 import org.java_websocket.handshake.ServerHandshake
 import org.mockito.Mockito._
+import org.mockito.exceptions.base.MockitoAssertionError
 import org.mockito.{ArgumentMatcher, Matchers}
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
@@ -35,19 +38,14 @@ class SlackActorSpec(_system: ActorSystem)
       test(keepAliveInterval = 1.seconds) { settings =>
         import settings._
 
-        Thread.sleep(1000)
-        verify(client, times(1)).send(Matchers.argThat(new PingMessageMatcher))
-
-        Thread.sleep(1000)
-        verify(client, times(1)).close()
+        expectMock()(verify(client, times(1)).send(Matchers.argThat(new PingMessageMatcher)))
+        expectMock()(verify(client, atLeastOnce()).close())
       }
 
       test(keepAliveInterval = 1.seconds) { settings =>
         import settings._
 
-        Thread.sleep(1000)
-        verify(client, times(1)).send(Matchers.argThat(new PingMessageMatcher))
-
+        expectMock()(verify(client, times(1)).send(Matchers.argThat(new PingMessageMatcher)))
         receive(Json.toJson(PongEvent(1)))
 
         Thread.sleep(1000)
@@ -57,8 +55,7 @@ class SlackActorSpec(_system: ActorSystem)
       test(keepAliveInterval = 1.seconds) { settings =>
         import settings._
 
-        Thread.sleep(1000)
-        verify(client, times(1)).send(Matchers.argThat(new PingMessageMatcher))
+        expectMock()(verify(client, times(1)).send(Matchers.argThat(new PingMessageMatcher)))
 
         receive(Json.obj())
 
@@ -83,9 +80,10 @@ class SlackActorSpec(_system: ActorSystem)
 
         ping(accepted.id)
 
-        Thread.sleep(1000)
-        verify(client, times(1)).send(Matchers.any[String])
-        verify(client, times(1)).send(Matchers.argThat(new SimpleMessageMatcher(accepted.id, "pong")))
+        expectMock() {
+          verify(client, times(1)).send(Matchers.any[String])
+          verify(client, times(1)).send(Matchers.argThat(new SimpleMessageMatcher(accepted.id, "pong")))
+        }
       }
     }
 
@@ -100,9 +98,10 @@ class SlackActorSpec(_system: ActorSystem)
         var counter = 0
         def expect(channel: SlackChannel, text: String) = {
           counter = counter + 1
-          Thread.sleep(1000)
-          verify(client, times(1)).send(Matchers.argThat(new SimpleMessageMatcher(channel, text)))
-          verify(client, times(counter)).send(Matchers.any[String])
+          expectMock() {
+            verify(client, times(1)).send(Matchers.argThat(new SimpleMessageMatcher(channel, text)))
+            verify(client, times(counter)).send(Matchers.any[String])
+          }
         }
 
         def expectNextJobId(channel: SlackChannel, text: String => String): String = {
@@ -164,7 +163,7 @@ trait SlackActorSpecHelper extends ArbitraryHelper with MockitoSugar {
     }
   }
 
-  case class Channel(id: SlackChannel, name: ChannelName)
+  case class Channel(id: SlackChannel, name: SlackChannelName)
 
   case class SlackActorSpecSettings(
     api: SlackWebApi,
@@ -176,13 +175,30 @@ trait SlackActorSpecHelper extends ArbitraryHelper with MockitoSugar {
     jobId: AtomicReference[String]
   )
 
+  def expectMock(await: FiniteDuration = 3.seconds)(f: => Unit) = {
+    val now = LocalDateTime.now()
+    var cond = true
+    while (cond && LocalDateTime.now().isBefore(now.plusSeconds(await.toSeconds))) {
+      try {
+        f
+        cond = false
+      } catch {
+        case _: MockitoAssertionError => Thread.sleep(100)
+      }
+    }
+    f
+  }
+
   def test(keepAliveInterval: FiniteDuration)(f: SlackActorSpecSettings => Unit)(implicit system: ActorSystem): Unit = {
     val api = mock[SlackWebApi]
 
-    val channels = scala.collection.mutable.Map.empty[SlackChannel, ChannelName]
+    val channels = scala.collection.mutable.Map.empty[SlackChannel, SlackChannelName]
+    val uniqueId = new Unique[SlackChannel]()
+    val uniqueName = new Unique[SlackChannelName]()
+
     def newChannel() = {
-      val id = Stream.continually(sample[SlackChannel]).filter(!channels.keySet.contains(_)).head
-      val name = Stream.continually(sample[ChannelName]).filter(!channels.valuesIterator.contains(_)).head
+      val id = uniqueId.sample()
+      val name = uniqueName.sample()
       channels += id -> name
       when(api.info(id)).thenReturn(name.name)
       Channel(id, name)
@@ -197,8 +213,11 @@ trait SlackActorSpecHelper extends ArbitraryHelper with MockitoSugar {
     val jobId = new AtomicReference[String](UUID.randomUUID().toString)
 
     val send = new AtomicReference[(JsValue) => Unit]()
+    val opened = new AtomicReference[(ServerHandshake) => Unit]()
 
     when(api.start()).thenReturn((uri, bot))
+
+    val lock = new CountDownLatch(1)
 
     val factory = new ClientFactory {
       override def wss(uri: URI,
@@ -207,6 +226,8 @@ trait SlackActorSpecHelper extends ArbitraryHelper with MockitoSugar {
                        close: (Int, String, Boolean) => Unit,
                        receive: (JsValue) => Unit): Client = {
         send.set(receive)
+        opened.set(open)
+        lock.countDown()
         client
       }
     }
@@ -251,7 +272,11 @@ trait SlackActorSpecHelper extends ArbitraryHelper with MockitoSugar {
 
     def acceptedChannel() = newChannel()
 
-    Thread.sleep(500)
+    lock.await(1, TimeUnit.SECONDS)
+
+    Thread.sleep(100)
+
+    opened.get()(mock[ServerHandshake])
 
     try {
       f(SlackActorSpecSettings(api, client, receive, message, ignoredChannel, acceptedChannel, jobId))
