@@ -19,7 +19,7 @@ object Settings {
     fork in Test := true,
     scalacOptions in (Compile, compile) ++= Seq("-Xlint:-nullary-unit", "-Xlint", "-Xfatal-warnings", "-feature", "-unchecked", "-deprecation"))
 
-  val akkaVersion = "2.3.9"
+  val akkaVersion = "2.3.10"
 
   val akkaSettings = Seq(
     libraryDependencies += "com.typesafe.akka" %% "akka-actor" % akkaVersion,
