@@ -9,6 +9,12 @@ sbt assembly
 java -Dconfig.file=conf/application.conf -Dlogback.configurationFile=conf/logback.xml -jar target/scala-2.11/hoecoga-bot-assembly-1.1.jar
 ```
 
+or
+
+```
+sbt docker
+```
+
 ## Commands
 ### Ping
 ```

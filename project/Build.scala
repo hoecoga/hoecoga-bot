@@ -3,12 +3,13 @@ import sbt._
 
 object Build extends sbt.Build {
   import Settings._
+  import Docker._
 
   lazy val root = Project(
     id = "hoecoga-bot",
     base = file("."),
     settings = defaultSettings ++ akkaSettings ++ wsSettings ++ configSettings ++ httpSettings ++
-      jsonSettings ++ quartzSettings ++ scoptSettings ++ guiceSettings ++ testSettings)
+      jsonSettings ++ quartzSettings ++ scoptSettings ++ guiceSettings ++ testSettings ++ dockerSettings)
 }
 
 object Settings {
