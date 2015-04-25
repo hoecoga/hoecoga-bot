@@ -48,7 +48,7 @@ class SlackActor(settings: SlackActor.SlackActorSettings) extends Actor with Act
   private[this] def event(e: JsValue): Unit = {
     (e \ "type").asOpt[String] match {
       case Some("message") =>
-        self ! e.as[MessageEvent]
+        e.validate[MessageEvent].fold(_ => log.info(s"skip $e"), self ! _)
 
       case Some("pong") =>
         self ! e.as[PongEvent]
