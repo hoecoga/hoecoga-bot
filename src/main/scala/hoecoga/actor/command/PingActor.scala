@@ -1,7 +1,7 @@
-package hoecoga
+package hoecoga.actor.command
 
 import akka.actor.{Actor, ActorLogging, Props}
-import hoecoga.PingActor.{Ping, PingConfig, Pong}
+import hoecoga.actor.command.PingActor.{Pong, Ping, PingConfig}
 import hoecoga.slack.MessageEvent
 import scopt.OptionParser
 
@@ -34,7 +34,16 @@ class PingActor extends Actor with ActorLogging with Cli[PingConfig] {
 object PingActor {
   case class PingConfig(help: Boolean = false)
 
+  /**
+   * An incoming ping command.
+   * @param message original [[MessageEvent]].
+   * @param args ping command arguments.
+   */
   case class Ping(message: MessageEvent, args: Array[String])
+
+  /**
+   * The outgoing pong message.
+   */
   case object Pong
 
   def props(): Props = Props(new PingActor())

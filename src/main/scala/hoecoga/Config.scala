@@ -40,6 +40,11 @@ object Config {
      * The slack channel names to ignore incoming message and to prohibit any response to the channels.
      */
     val ignoredChannels: List[String] = config.getStringList("ignored-channels").toList
+
+    /**
+     * The interval to send ping/pong rtm message for websocket keep alive.
+     */
+    val keepAliveInterval: FiniteDuration = config.getDuration("keep-alive-interval", TimeUnit.SECONDS).seconds
   }
 
   class Scheduler(config: com.typesafe.config.Config) {

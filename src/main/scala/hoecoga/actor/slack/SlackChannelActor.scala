@@ -1,12 +1,13 @@
-package hoecoga
+package hoecoga.actor.slack
 
 import akka.actor._
-import hoecoga.CronActor.{Cron, CronActorSettings}
-import hoecoga.PingActor.{Ping, Pong}
-import hoecoga.SimpleMessageEventBus.SimpleMessageEvent
-import hoecoga.SlackChannelActor.ChannelMessageEvent
-import hoecoga.slack.{MessageEvent, SlackChannel, SlackUser}
-import org.scalacheck.{Arbitrary, Gen}
+import hoecoga.actor.command.CronActor.{Cron, CronActorSettings}
+import hoecoga.actor.command.PingActor.{Ping, Pong}
+import hoecoga.actor.command.{Cli, CronActor, PingActor}
+import hoecoga.actor.scheduler.SchedulerEventBus
+import hoecoga.actor.slack.SimpleMessageEventBus.SimpleMessageEvent
+import hoecoga.actor.slack.SlackChannelActor.ChannelMessageEvent
+import hoecoga.slack.{MessageEvent, SlackChannel, SlackChannelName, SlackUser}
 
 /**
  * A slack channel actor.
@@ -40,17 +41,16 @@ class SlackChannelActor(settings: SlackChannelActor.SlackChannelActorSettings) e
 }
 
 object SlackChannelActor {
-  case class ChannelName(name: String)
-
-  implicit val arbitrary: Arbitrary[ChannelName] = Arbitrary(Gen.identifier.map(ChannelName))
-
-  case class ChannelMessageEvent(bot: SlackUser, message: MessageEvent, name: ChannelName)
+  /**
+   * An incoming [[MessageEvent]] with [[SlackChannelName]] for each slack channel.
+   * @param bot the slack bot user.
+   */
+  case class ChannelMessageEvent(bot: SlackUser, message: MessageEvent, name: SlackChannelName)
 
   case class SlackChannelActorSettings(
     channel: SlackChannel,
     simpleMessageBus: SimpleMessageEventBus,
     schedulerBus: SchedulerEventBus)
 
-  def props(settings: SlackChannelActorSettings): Props =
-    Props(new SlackChannelActor(settings))
+  def props(settings: SlackChannelActorSettings): Props = Props(new SlackChannelActor(settings))
 }

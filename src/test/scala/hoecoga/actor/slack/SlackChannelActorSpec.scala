@@ -1,11 +1,12 @@
-package hoecoga
+package hoecoga.actor.slack
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import hoecoga.SimpleMessageEventBus.SimpleMessageEvent
-import hoecoga.SlackChannelActor.{ChannelMessageEvent, ChannelName}
+import hoecoga.actor.scheduler.SchedulerEventBus
+import hoecoga.actor.slack.SimpleMessageEventBus.SimpleMessageEvent
+import hoecoga.actor.slack.SlackChannelActor.ChannelMessageEvent
 import hoecoga.core.ArbitraryHelper
-import hoecoga.slack.{MessageEvent, SlackChannel, SlackUser}
+import hoecoga.slack.{SlackChannelName, MessageEvent, SlackChannel, SlackUser}
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 class SlackChannelActorSpec(_system: ActorSystem)
@@ -89,7 +90,7 @@ trait SlackChannelActorHelper extends ArbitraryHelper {
     val probe = TestProbe()
     val bot = sample[SlackUser]
     val channel = sample[SlackChannel]
-    val name = sample[ChannelName]
+    val name = sample[SlackChannelName]
     val simpleMessageBus = new SimpleMessageEventBus
     val schedulerBus = new SchedulerEventBus
 

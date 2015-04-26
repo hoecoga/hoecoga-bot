@@ -1,9 +1,10 @@
-package hoecoga
+package hoecoga.actor.scheduler
 
 import akka.actor.ActorRef
 import akka.event.{EventBus, LookupClassification}
-import hoecoga.SchedulerEventBus.SchedulerEvent
-import hoecoga.SimpleMessageEventBus.SimpleMessageEvent
+import hoecoga.actor.scheduler.SchedulerEventBus.SchedulerEvent
+import hoecoga.actor.slack.SimpleMessageEventBus
+import SimpleMessageEventBus.SimpleMessageEvent
 import hoecoga.slack.SlackChannel
 
 class SchedulerEventBus extends EventBus with LookupClassification {

@@ -1,9 +1,9 @@
-package hoecoga
+package hoecoga.actor.scheduler
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import hoecoga.SchedulerActor.GetJobs
-import hoecoga.SchedulerEventBus.IncomingSchedulerEvent
+import hoecoga.actor.scheduler.SchedulerActor.GetJobs
+import hoecoga.actor.scheduler.SchedulerEventBus.IncomingSchedulerEvent
 import hoecoga.core.ArbitraryHelper
 import hoecoga.slack.SlackChannel
 import org.scalatest.Matchers._

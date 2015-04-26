@@ -1,4 +1,4 @@
-package hoecoga
+package hoecoga.actor.scheduler
 
 import java.time.LocalDateTime
 import java.util.concurrent.atomic.AtomicReference
@@ -6,7 +6,7 @@ import java.util.{TimeZone, UUID}
 
 import akka.testkit.TestProbe
 import com.google.inject.{AbstractModule, Guice}
-import hoecoga.SchedulerActor._
+import hoecoga.actor.scheduler.SchedulerActor._
 import hoecoga.core.ArbitraryHelper
 import hoecoga.scheduler.{JobData, SlackJob}
 import hoecoga.slack.SlackChannel
@@ -21,9 +21,9 @@ class SchedulerActorSpec extends FunSpec with ArbitraryHelper with SchedulerActo
         val channel1, channel2, channel3 = sample[SlackChannel]
         val message1, message2, message3 = sample[String]
         val now = LocalDateTime.now()
-        val now1 = now.plusSeconds(3)
-        val now2 = now.plusSeconds(4)
-        val now3 = now.plusSeconds(5)
+        val now1 = now.plusSeconds(2)
+        val now2 = now.plusSeconds(3)
+        val now3 = now.plusSeconds(4)
         val cron1 = s"${now1.getSecond} * * * * ?"
         val cron2 = s"${now2.getSecond} * * * * ?"
         val cron3 = s"${now3.getSecond} * * * * ?"

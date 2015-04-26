@@ -1,0 +1,7 @@
+.idea
+project/target
+target/resolution-cache
+target/scala-2.11
+target/streams
+target/target
+target/test-reports

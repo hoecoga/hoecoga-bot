@@ -1,17 +1,17 @@
-package hoecoga
+package hoecoga.actor.scheduler
 
 import java.util.{Properties, TimeZone, UUID}
 
 import akka.actor._
 import com.google.inject.Injector
-import hoecoga.SchedulerActor._
-import hoecoga.SchedulerEventBus.{IncomingSchedulerEvent, OutgoingSchedulerEvent}
-import hoecoga.SimpleMessageEventBus.SimpleMessageEvent
-import hoecoga.scheduler.JobPersistentActor.{Delete, Insert, Query, QueryResult}
+import hoecoga.actor.scheduler.SchedulerActor._
+import hoecoga.actor.scheduler.SchedulerEventBus.{IncomingSchedulerEvent, OutgoingSchedulerEvent}
+import hoecoga.actor.slack.SimpleMessageEventBus.SimpleMessageEvent
+import JobPersistentActor.{Delete, Insert, Query, QueryResult}
 import hoecoga.scheduler._
 import hoecoga.slack.SlackChannel
-import org.quartz.{Scheduler, _}
 import org.quartz.impl.StdSchedulerFactory
+import org.quartz.{Scheduler, _}
 import play.api.libs.json.Json
 
 import scala.util.control.NonFatal
@@ -109,8 +109,14 @@ object SchedulerActor {
   private val jobStore = "org.quartz.simpl.RAMJobStore"
   private val persistentId = "quartz"
 
+  /**
+   * An incoming order to retrieve all [[JobData]] on `channel`.
+   */
   case class GetJobs(override val channel: SlackChannel) extends IncomingSchedulerEvent
 
+  /**
+   * A result of [[GetJobs]].
+   */
   case class Jobs(override val channel: SlackChannel, jobs: List[JobData]) extends OutgoingSchedulerEvent {
     override def simpleMessageEvent: SimpleMessageEvent = {
       val lines = s"${jobs.size} job(s) found" ::
@@ -119,14 +125,26 @@ object SchedulerActor {
     }
   }
 
+  /**
+   * An incoming order to create a new [[JobData]].
+   */
   case class CreateJob(override val channel: SlackChannel, cron: String, message: String) extends IncomingSchedulerEvent
 
+  /**
+   * A result of [[CreateJob]].
+   */
   case class CreatedJob(override val channel: SlackChannel, job: JobData) extends OutgoingSchedulerEvent {
     override def simpleMessageEvent: SimpleMessageEvent = SimpleMessageEvent(channel, s"job ${job.id} created")
   }
 
+  /**
+   * An incoming order to delete [[JobData]].
+   */
   case class DeleteJob(override val channel: SlackChannel, id: String) extends IncomingSchedulerEvent
 
+  /**
+   * A result of [[DeleteJob]].
+   */
   case class DeletedJob(override val channel: SlackChannel, id: String, result: Boolean) extends OutgoingSchedulerEvent {
     override def simpleMessageEvent: SimpleMessageEvent = {
       val text = if (result) s"job $id deleted" else s"job $id not found"
@@ -134,6 +152,9 @@ object SchedulerActor {
     }
   }
 
+  /**
+   * A failure result of any incoming messages.
+   */
   case class SchedulerFailure(override val channel: SlackChannel, e: Throwable) extends OutgoingSchedulerEvent {
     override def simpleMessageEvent: SimpleMessageEvent = SimpleMessageEvent(channel, e.getMessage)
   }

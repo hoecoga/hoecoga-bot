@@ -1,10 +1,13 @@
+package hoecoga
+
 import java.util.UUID
 
 import akka.actor.ActorSystem
 import com.google.inject.{AbstractModule, Guice}
 import com.typesafe.config.ConfigFactory
-import hoecoga.SimpleMessageEventBus.SimpleMessageEvent
-import hoecoga._
+import hoecoga.actor.slack.{SlackActor, SimpleMessageEventBus}
+import SimpleMessageEventBus.SimpleMessageEvent
+import hoecoga.actor.scheduler.{SchedulerEventBus, SchedulerActor}
 import hoecoga.scheduler.{JobData, SlackJob}
 import hoecoga.slack.SlackWebApi
 import hoecoga.websocket.ClientFactory
@@ -53,6 +56,7 @@ object Main {
       bus = schedulerBus)
 
     val slackSettings = SlackActor.SlackActorSettings(
+      config.slack.keepAliveInterval,
       config.slack.ignoredChannels,
       config.slack.reconnectInterval,
       factory,

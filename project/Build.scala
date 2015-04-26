@@ -3,23 +3,24 @@ import sbt._
 
 object Build extends sbt.Build {
   import Settings._
+  import Docker._
 
   lazy val root = Project(
     id = "hoecoga-bot",
     base = file("."),
     settings = defaultSettings ++ akkaSettings ++ wsSettings ++ configSettings ++ httpSettings ++
-      jsonSettings ++ quartzSettings ++ scoptSettings ++ guiceSettings ++ testSettings)
+      jsonSettings ++ quartzSettings ++ scoptSettings ++ guiceSettings ++ testSettings ++ dockerSettings)
 }
 
 object Settings {
   val defaultSettings = Seq(
     name := "hoecoga-bot",
-    version := "1.1",
+    version := "1.2",
     scalaVersion := "2.11.6",
     fork in Test := true,
     scalacOptions in (Compile, compile) ++= Seq("-Xlint:-nullary-unit", "-Xlint", "-Xfatal-warnings", "-feature", "-unchecked", "-deprecation"))
 
-  val akkaVersion = "2.3.9"
+  val akkaVersion = "2.3.10"
 
   val akkaSettings = Seq(
     libraryDependencies += "com.typesafe.akka" %% "akka-actor" % akkaVersion,
