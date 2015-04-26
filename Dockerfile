@@ -15,8 +15,8 @@ ENV WD /hoecoga-bot
 RUN mkdir $WD
 COPY application.conf $WD/
 COPY logback.xml $WD/
-COPY hoecoga-bot-assembly-1.1.jar $WD/
+COPY hoecoga-bot-assembly-1.2.jar $WD/
 
 WORKDIR $WD
 
-CMD ["java", "-Dconfig.file=application.conf", "-Dlogback.configurationFile=logback.xml", "-jar", "hoecoga-bot-assembly-1.1.jar"]
+CMD ["java", "-Dconfig.file=application.conf", "-Dlogback.configurationFile=logback.xml", "-jar", "hoecoga-bot-assembly-1.2.jar"]
